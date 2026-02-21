@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Clinique – Réfraction en Renouvellement</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --primary: #1a3a5c;
+    --primary-light: #2a5a8c;
+    --accent: #00b4d8;
+    --accent2: #48cae4;
+    --success: #2ecc71;
+    --warning: #f39c12;
+    --danger: #e74c3c;
+    --absent: #95a5a6;
+    --na: #8e44ad;
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --text-light: #5a6a7a;
+    --border: #dce6f0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, var(--primary) 0%, #0d2137 100%);
+    padding: 24px 40px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.5rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+  header p {
+    font-size: 0.8rem;
+    opacity: 0.65;
+    margin-top: 3px;
+  }
+  .header-badge {
+    background: rgba(0,180,216,0.2);
+    border: 1px solid rgba(0,180,216,0.5);
+    color: var(--accent2);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+
+  /* MAIN LAYOUT */
+  .app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 20px;
+  }
+
+  /* PROGRESS BAR */
+  .progress-section {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .progress-header span {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    font-weight: 500;
+  }
+  .progress-header strong {
+    color: var(--primary);
+    font-size: 1rem;
+  }
+  .progress-bar {
+    background: var(--border);
+    border-radius: 8px;
+    height: 8px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--primary-light));
+    border-radius: 8px;
+    transition: width 0.4s ease;
+  }
+
+  /* DOSSIER NAVIGATOR */
+  .dossier-nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .dossier-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: var(--card);
+    color: var(--text-light);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dossier-btn:hover { border-color: var(--accent); color: var(--primary); }
+  .dossier-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+  .dossier-btn.complete { border-color: var(--success); }
+  .dossier-btn.complete::after {
+    content: '✓';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--success);
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* AUDIT CARD */
+  .audit-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .audit-card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .dossier-number {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    min-width: 72px;
+    text-align: center;
+  }
+  .dossier-number small {
+    display: block;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.6rem;
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .audit-card-title h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.2rem;
+    color: var(--primary);
+    font-weight: 400;
+  }
+  .audit-card-title p {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 2px;
+  }
+
+  /* CRITERIA TABLE */
+  .criteria-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .criteria-table thead tr {
+    background: var(--bg);
+  }
+  .criteria-table thead th {
+    padding: 10px 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+  }
+  .criteria-table thead th:last-child { text-align: center; }
+  .criteria-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .criteria-table tbody tr:hover { background: #f8fbff; }
+  .criteria-table tbody tr:last-child { border-bottom: none; }
+  .crit-num {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  .criteria-table td {
+    padding: 14px;
+    vertical-align: top;
+  }
+  .crit-label {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 3px;
+  }
+  .crit-desc {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    line-height: 1.5;
+  }
+  .crit-ref {
+    font-size: 0.7rem;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+  .response-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .response-btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+    white-space: nowrap;
+    color: var(--text-light);
+  }
+  .response-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+  .response-btn.sel-conforme { background: #e8faf2; border-color: var(--success); color: var(--success); }
+  .response-btn.sel-nonconforme { background: #fef0ef; border-color: var(--danger); color: var(--danger); }
+  .response-btn.sel-absent { background: #f5f5f5; border-color: var(--absent); color: var(--absent); }
+  .response-btn.sel-na { background: #f3eafd; border-color: var(--na); color: var(--na); }
+
+  /* NAVIGATION BUTTONS */
+  .nav-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+  .btn {
+    padding: 11px 24px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26,58,92,0.3); }
+  .btn-secondary {
+    background: var(--bg);
+    color: var(--primary);
+    border: 1.5px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); background: white; }
+  .btn-success {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+  }
+  .btn-success:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(46,204,113,0.3); }
+
+  /* RESULTS SECTION */
+  #results-section { display: none; }
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 700px) { .results-grid { grid-template-columns: 1fr; } }
+
+  .result-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .result-card h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.1rem;
+    color: var(--primary);
+    margin-bottom: 16px;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* KPI BOXES */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 700px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+  .kpi-box {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 18px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border-top: 4px solid;
+  }
+  .kpi-box.kpi-conforme { border-color: var(--success); }
+  .kpi-box.kpi-nc { border-color: var(--danger); }
+  .kpi-box.kpi-absent { border-color: var(--absent); }
+  .kpi-box.kpi-na { border-color: var(--na); }
+  .kpi-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    font-weight: 400;
+  }
+  .kpi-box.kpi-conforme .kpi-value { color: var(--success); }
+  .kpi-box.kpi-nc .kpi-value { color: var(--danger); }
+  .kpi-box.kpi-absent .kpi-value { color: var(--absent); }
+  .kpi-box.kpi-na .kpi-value { color: var(--na); }
+  .kpi-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-light); margin-top: 4px; }
+
+  /* FEEDBACK TABLE */
+  .feedback-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .feedback-table th {
+    background: var(--bg);
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-light);
+    font-weight: 600;
+  }
+  .feedback-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .feedback-table tr:last-child td { border-bottom: none; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  .badge-conforme { background: #e8faf2; color: var(--success); }
+  .badge-nc { background: #fef0ef; color: var(--danger); }
+  .badge-absent { background: #f5f5f5; color: var(--absent); }
+  .badge-na { background: #f3eafd; color: var(--na); }
+  .rate-ok { color: var(--success); font-weight: 700; }
+  .rate-warn { color: var(--warning); font-weight: 700; }
+  .rate-bad { color: var(--danger); font-weight: 700; }
+
+  /* ACTIONS */
+  .action-item {
+    background: #fffbf0;
+    border-left: 4px solid var(--warning);
+    border-radius: 0 10px 10px 0;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+  }
+  .action-item.action-critical {
+    background: #fff5f5;
+    border-color: var(--danger);
+  }
+  .action-item.action-good {
+    background: #f0faf5;
+    border-color: var(--success);
+  }
+  .action-title { font-weight: 600; font-size: 0.85rem; color: var(--text); margin-bottom: 4px; }
+  .action-desc { font-size: 0.8rem; color: var(--text-light); line-height: 1.5; }
+
+  /* GLOBAL SCORE */
+  .global-score-section {
+    background: linear-gradient(135deg, var(--primary) 0%, #0d2137 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    box-shadow: 0 4px 20px rgba(26,58,92,0.3);
+  }
+  .score-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 4px solid rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .score-circle .score-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    line-height: 1;
+  }
+  .score-circle small { font-size: 0.65rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em; }
+  .score-text h2 { font-family: 'DM Serif Display', serif; font-size: 1.4rem; font-weight: 400; margin-bottom: 6px; }
+  .score-text p { font-size: 0.85rem; opacity: 0.75; line-height: 1.6; }
+
+  /* CHART CONTAINER */
+  .chart-container {
+    position: relative;
+    height: 340px;
+    width: 100%;
+  }
+
+  /* PRINT BUTTON */
+  .btn-print {
+    background: white;
+    color: var(--primary);
+    border: 1.5px solid var(--border);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-print:hover { border-color: var(--primary); }
+
+  /* DOSSIER ID INPUT */
+  .dossier-id-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f8fbff;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+  }
+  .dossier-id-row label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-light);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .dossier-id-input {
+    flex: 1;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    color: var(--text);
+    background: white;
+    transition: border 0.2s;
+    max-width: 320px;
+  }
+  .dossier-id-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .dossier-id-hint {
+    font-size: 0.72rem;
+    color: var(--text-light);
+    font-style: italic;
+  }
+
+  /* CSV BUTTON */
+  .btn-csv {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-csv:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(46,204,113,0.3); }
+
+  /* RESET */
+  .reset-section {
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  /* DPC BADGE */
+  .dpc-footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 0.72rem;
+    color: var(--text-light);
+    border-top: 1px solid var(--border);
+    margin-top: 32px;
+  }
+
+  /* TOOLTIP */
+  .tooltip-ref {
+    font-size: 0.68rem;
+    color: var(--accent);
+    font-style: italic;
+  }
+
+  /* ANIMATION */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.4s ease forwards; }
+
+  .completion-msg {
+    background: linear-gradient(135deg, #e8faf2, #d5f5e9);
+    border: 1.5px solid var(--success);
+    border-radius: 12px;
+    padding: 14px 20px;
+    color: #1a6640;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Audit Clinique – Réfraction en Renouvellement avec Adaptation</h1>
+    <p>Évaluation des pratiques professionnelles · DPC Opticiens Lunetiers</p>
+  </div>
+  <div class="header-badge">EPP · 10 Dossiers</div>
+</header>
+
+<div class="app">
+
+  <!-- SECTION SAISIE -->
+  <div id="saisie-section">
+
+    <!-- Progress -->
+    <div class="progress-section">
+      <div class="progress-header">
+        <span>Progression de l'audit</span>
+        <strong id="progress-text">0 / 10 dossiers complétés</strong>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Dossier Navigator -->
+    <div class="dossier-nav" id="dossier-nav"></div>
+
+    <!-- Audit Form -->
+    <div class="audit-card fade-in" id="audit-form">
+      <div class="audit-card-header">
+        <div class="dossier-number">
+          <small>Dossier</small>
+          <span id="current-dossier-num">01</span>
+        </div>
+        <div class="audit-card-title">
+          <h2>Grille d'évaluation – 10 critères</h2>
+          <p>Renseignez chaque critère : Conforme / Non conforme / Info absente / NA</p>
+        </div>
+      </div>
+
+      <!-- Identifiant anonymisé -->
+      <div class="dossier-id-row">
+        <label>🔒 Identifiant dossier</label>
+        <input type="text" class="dossier-id-input" id="dossier-id-input" placeholder="Ex : D2024-001, Initiales+DDN…" maxlength="40" oninput="saveDossierId(this.value)" />
+        <span class="dossier-id-hint">Anonymisé – Ne pas saisir le nom du patient</span>
+      </div>
+
+      <table class="criteria-table">
+        <thead>
+          <tr>
+            <th style="width:40px">#</th>
+            <th>Critère</th>
+            <th style="width:260px;text-align:center">Évaluation</th>
+          </tr>
+        </thead>
+        <tbody id="criteria-tbody"></tbody>
+      </table>
+
+      <div class="nav-actions">
+        <button class="btn btn-secondary" id="btn-prev" onclick="prevDossier()">← Précédent</button>
+        <button class="btn btn-primary" id="btn-next" onclick="nextDossier()">Suivant →</button>
+        <button class="btn btn-success" id="btn-results" onclick="showResults()" style="display:none">📊 Voir les résultats</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SECTION RÉSULTATS -->
+  <div id="results-section" class="fade-in">
+
+    <!-- Score global -->
+    <div class="global-score-section" id="global-score-section">
+      <div class="score-circle" id="score-circle">
+        <span class="score-num" id="score-num">-</span>
+        <small>% conformité</small>
+      </div>
+      <div class="score-text">
+        <h2 id="score-title">Résultats de l'audit clinique</h2>
+        <p id="score-comment"></p>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi-box kpi-conforme">
+        <div class="kpi-value" id="kpi-conforme">-</div>
+        <div class="kpi-label">✅ Conforme</div>
+      </div>
+      <div class="kpi-box kpi-nc">
+        <div class="kpi-value" id="kpi-nc">-</div>
+        <div class="kpi-label">❌ Non conforme</div>
+      </div>
+      <div class="kpi-box kpi-absent">
+        <div class="kpi-value" id="kpi-absent">-</div>
+        <div class="kpi-label">⚠️ Info absente</div>
+      </div>
+      <div class="kpi-box kpi-na">
+        <div class="kpi-value" id="kpi-na">-</div>
+        <div class="kpi-label">NA</div>
+      </div>
+    </div>
+
+    <!-- GRID: Radar + Taux par critère -->
+    <div class="results-grid">
+      <div class="result-card">
+        <h3>🕸️ Toile d'araignée – Conformité par critère</h3>
+        <div class="chart-container">
+          <canvas id="radarChart"></canvas>
+        </div>
+      </div>
+      <div class="result-card">
+        <h3>📊 Taux de conformité par critère</h3>
+        <div class="chart-container">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback par critère -->
+    <div class="result-card" style="margin-bottom:24px">
+      <h3>📋 Analyse détaillée par critère</h3>
+      <table class="feedback-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Critère</th>
+            <th>Taux conformité</th>
+            <th>Détail (10 dossiers)</th>
+            <th>Feedback</th>
+          </tr>
+        </thead>
+        <tbody id="feedback-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Actions d'amélioration -->
+    <div class="result-card" style="margin-bottom:24px">
+      <h3>🎯 Plan d'actions d'amélioration</h3>
+      <div id="actions-container"></div>
+    </div>
+
+    <!-- Conclusion DPC -->
+    <div class="result-card" style="margin-bottom:24px">
+      <h3>📝 Conclusion de l'audit – Rapport DPC</h3>
+      <div id="conclusion-text" style="font-size:0.85rem; line-height:1.8; color:var(--text-light);"></div>
+    </div>
+
+    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <button class="btn-print" id="btn-pdf" onclick="exportPDF()">🖨️ Exporter en PDF</button>
+      <button class="btn-csv" onclick="exportCSV()">⬇️ Exporter en CSV</button>
+      <button class="btn btn-secondary" onclick="resetAudit()">🔄 Nouvel audit</button>
+    </div>
+
+  </div>
+
+  <div class="dpc-footer">
+    Outil d'Évaluation des Pratiques Professionnelles (EPP) · Audit Clinique · Développement Professionnel Continu (DPC) · Opticien Lunetier<br>
+    Référentiels : HAS · AOF · Legifrance · ANDPC
+  </div>
+</div>
+
+<script>
+// =====================
+// DATA
+// =====================
+const CRITERIA = [
+  {
+    num: 1,
+    label: "Prescription en cours de validité",
+    desc: "Je vérifie dans le dossier du patient que le patient est en situation de renouvellement avec adaptation (hors primo-prescription) selon la réglementation en vigueur.",
+    ref: "Décret n°2016-1381 du 12 octobre 2016 – Legifrance"
+  },
+  {
+    num: 2,
+    label: "Respect du consentement",
+    desc: "Je vérifie dans le dossier patient que j'ai demandé son consentement.",
+    ref: "Guide de bonnes pratiques – AOF"
+  },
+  {
+    num: 3,
+    label: "Analyse de la prescription",
+    desc: "Je vérifie l'analyse de la prescription (date, type de correction, antécédents visuels), l'ancienne compensation, les acuités monoculaires et binoculaires.",
+    ref: "Examen optométrique – AOF"
+  },
+  {
+    num: 4,
+    label: "Anamnèse complète",
+    desc: "Je vérifie l'anamnèse réalisée selon les usages recommandés : motif de consultation, gêne visuelle, contexte d'usage, besoins, pathologies à écarter.",
+    ref: "Examen optométrique – AOF"
+  },
+  {
+    num: 5,
+    label: "Contrôle de vision objectif et subjectif",
+    desc: "Je vérifie que j'ai effectué un examen de réfraction complet : vision de loin, près, binoculaire, stéréoscopique.",
+    ref: "Examen optométrique – AOF"
+  },
+  {
+    num: 6,
+    label: "Application des recommandations HAS",
+    desc: "Je vérifie que j'ai respecté les recommandations de la HAS pour la délivrance de verres correcteurs dans le cadre d'un renouvellement.",
+    ref: "HAS – Troubles de la réfraction 2011"
+  },
+  {
+    num: 7,
+    label: "Traçabilité de l'examen",
+    desc: "Je vérifie que j'ai tracé les résultats dans le dossier : valeurs, observations, tests complémentaires.",
+    ref: "HAS – Troubles de la réfraction 2011"
+  },
+  {
+    num: 8,
+    label: "Mise en situation d'usage",
+    desc: "Je vérifie que j'ai validé le test en situation d'usage : concordance entre résultats et besoins du patient.",
+    ref: "Protocole Santé Visuelle – AOF"
+  },
+  {
+    num: 9,
+    label: "Orientation vers un autre professionnel",
+    desc: "Je vérifie que j'ai orienté vers un professionnel de santé si nécessaire.",
+    ref: "HAS – Troubles de la réfraction 2011"
+  },
+  {
+    num: 10,
+    label: "Compte rendu conforme – Respect RGPD",
+    desc: "Je vérifie que j'ai rédigé un compte rendu transmis via messagerie sécurisée ou tout autre moyen respectant la confidentialité (ophtalmo, etc.).",
+    ref: "Art. L4362-12-1 – LOI n°2016-41 du 26 janvier 2016"
+  }
+];
+
+const RESPONSES = [
+  { key: 'conforme', label: 'Conforme', cls: 'sel-conforme' },
+  { key: 'nonconforme', label: 'Non conforme', cls: 'sel-nonconforme' },
+  { key: 'absent', label: 'Info absente', cls: 'sel-absent' },
+  { key: 'na', label: 'NA', cls: 'sel-na' }
+];
+
+const FEEDBACK_DATA = [
+  {
+    label: "Prescription en cours de validité",
+    feedback_ok: "Excellente maîtrise de la réglementation en matière de renouvellement. La vérification systématique de la validité de la prescription est un prérequis fondamental pour tout acte délégué.",
+    feedback_warn: "Des lacunes dans la vérification de la validité prescriptive ont été identifiées. Il convient de systématiser cette étape indispensable sur le plan juridique.",
+    action: "Réviser le Décret n°2016-1381 et créer une checklist d'entrée patient intégrant la vérification de validité de prescription."
+  },
+  {
+    label: "Respect du consentement",
+    feedback_ok: "Le recueil du consentement éclairé est bien intégré dans la pratique. Cette démarche éthique est conforme aux bonnes pratiques professionnelles.",
+    feedback_warn: "Le consentement éclairé n'est pas systématiquement tracé. C'est un élément médicolégal essentiel qui doit figurer dans tous les dossiers.",
+    action: "Intégrer un formulaire de consentement standard dans le dossier patient et former l'équipe à son utilisation systématique."
+  },
+  {
+    label: "Analyse de la prescription",
+    feedback_ok: "L'analyse comparative des prescriptions (ancienne vs nouvelle correction, acuités mono/binoculaires) est bien réalisée et documentée.",
+    feedback_warn: "L'analyse complète de la prescription avec comparaison des acuités manque dans certains dossiers. C'est pourtant un pilier de la démarche clinique.",
+    action: "Créer une trame de saisie structurée dans le dossier patient pour l'analyse comparative systématique des prescriptions."
+  },
+  {
+    label: "Anamnèse complète",
+    feedback_ok: "L'anamnèse est conduite de façon rigoureuse, permettant d'écarter les pathologies et d'identifier les besoins primaires et secondaires du patient.",
+    feedback_warn: "L'anamnèse est incomplète dans plusieurs dossiers. Une anamnèse structurée est indispensable pour une prise en charge personnalisée et sécurisée.",
+    action: "Élaborer un guide d'entretien structuré (motif, gêne, contexte d'usage) et le mettre à disposition de tous les collaborateurs."
+  },
+  {
+    label: "Contrôle de vision objectif et subjectif",
+    feedback_ok: "L'examen de réfraction est complet et conforme aux recommandations : vision de loin, de près, test binoculaire et stéréoscopique bien réalisés.",
+    feedback_warn: "Des examens de réfraction incomplets ont été identifiés. La complétude du bilan visuel est une exigence de qualité non négociable.",
+    action: "Rappeler le protocole complet d'examen réfractif lors d'une réunion d'équipe et afficher la checklist en salle d'examen."
+  },
+  {
+    label: "Application des recommandations HAS",
+    feedback_ok: "Les recommandations HAS 2011 pour la délivrance de verres correcteurs sont bien appliquées et tracées dans les dossiers.",
+    feedback_warn: "Les recommandations HAS ne sont pas systématiquement appliquées. Une mise à jour des pratiques s'impose.",
+    action: "Organiser une session de formation interne sur les recommandations HAS et créer un mémo de référence rapide pour les opticiens."
+  },
+  {
+    label: "Traçabilité de l'examen",
+    feedback_ok: "La traçabilité est assurée : valeurs, observations et tests complémentaires sont enregistrés de façon systématique dans le dossier.",
+    feedback_warn: "La traçabilité est insuffisante. L'absence de données dans le dossier patient constitue un risque médicolégal et compromet le suivi.",
+    action: "Définir des champs obligatoires dans le logiciel de gestion ou le dossier patient papier pour garantir une traçabilité complète."
+  },
+  {
+    label: "Mise en situation d'usage",
+    feedback_ok: "La validation en situation d'usage est réalisée et documentée : la concordance résultats / besoins patient est bien vérifiée.",
+    feedback_warn: "La mise en situation d'usage est trop souvent absente. C'est une étape clé pour s'assurer de l'adéquation entre la correction et les besoins réels du patient.",
+    action: "Systématiser le test en conditions réelles d'usage (lecture, écran, conduite) et en documenter les résultats dans le dossier."
+  },
+  {
+    label: "Orientation vers un autre professionnel",
+    feedback_ok: "Les orientations vers d'autres professionnels de santé sont bien tracées lorsque nécessaires, dans le respect du parcours de soins.",
+    feedback_warn: "L'orientation vers d'autres professionnels de santé n'est pas documentée. Cette étape est essentielle dans la coopération interprofessionnelle.",
+    action: "Créer une procédure documentée d'orientation avec les critères de déclenchement et les modalités de transmission sécurisée."
+  },
+  {
+    label: "Compte rendu conforme – RGPD",
+    feedback_ok: "Les comptes rendus sont rédigés et transmis via des canaux sécurisés conformément à la réglementation RGPD et au secret médical.",
+    feedback_warn: "La rédaction ou la transmission sécurisée du compte rendu est défaillante. Non-conformité potentielle au RGPD et à l'article L4362-12-1.",
+    action: "Former l'équipe à la messagerie sécurisée de santé (MSSanté), créer un modèle de compte rendu normé et l'intégrer dans les processus documentaires."
+  }
+];
+
+// =====================
+// STATE
+// =====================
+let currentDossier = 0;
+let dossierIds = Array(10).fill("");
+let auditData = Array.from({ length: 10 }, () => Array(10).fill(null));
+let radarChart = null;
+let barChart = null;
+
+// =====================
+// INIT
+// =====================
+function init() {
+  renderDossierNav();
+  renderCriteria();
+  updateUI();
+}
+
+function renderDossierNav() {
+  const nav = document.getElementById('dossier-nav');
+  nav.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'dossier-btn' + (i === currentDossier ? ' active' : '');
+    btn.textContent = (i + 1).toString().padStart(2, '0');
+    const complete = isDossierComplete(i);
+    if (complete) btn.classList.add('complete');
+    btn.onclick = () => goToDossier(i);
+    nav.appendChild(btn);
+  }
+}
+
+function renderCriteria() {
+  const tbody = document.getElementById('criteria-tbody');
+  tbody.innerHTML = '';
+  CRITERIA.forEach((crit, i) => {
+    const tr = document.createElement('tr');
+    const currentVal = auditData[currentDossier][i];
+    tr.innerHTML = `
+      <td><div class="crit-num">${crit.num}</div></td>
+      <td>
+        <div class="crit-label">${crit.label}</div>
+        <div class="crit-desc">${crit.desc}</div>
+        <div class="tooltip-ref">📎 ${crit.ref}</div>
+      </td>
+      <td>
+        <div class="response-group">
+          ${RESPONSES.map(r => `
+            <button class="response-btn ${currentVal === r.key ? r.cls : ''}"
+              data-crit="${i}" data-val="${r.key}"
+              onclick="selectResponse(${i}, '${r.key}')">
+              ${r.label}
+            </button>
+          `).join('')}
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function selectResponse(critIdx, val) {
+  auditData[currentDossier][critIdx] = val;
+  renderCriteria();
+  updateUI();
+}
+
+function isDossierComplete(dIdx) {
+  return auditData[dIdx].every(v => v !== null);
+}
+
+function allComplete() {
+  return auditData.every((_, i) => isDossierComplete(i));
+}
+
+function updateUI() {
+  document.getElementById('current-dossier-num').textContent = (currentDossier + 1).toString().padStart(2, '0');
+  const completed = auditData.filter((_, i) => isDossierComplete(i)).length;
+  document.getElementById('progress-text').textContent = `${completed} / 10 dossiers complétés`;
+  document.getElementById('progress-fill').style.width = (completed * 10) + '%';
+  renderDossierNav();
+  document.getElementById('btn-prev').style.display = currentDossier === 0 ? 'none' : 'inline-block';
+  document.getElementById('btn-next').style.display = currentDossier === 9 ? 'none' : 'inline-block';
+  const btnResults = document.getElementById('btn-results');
+  if (allComplete()) {
+    btnResults.style.display = 'inline-block';
+  } else {
+    btnResults.style.display = 'none';
+  }
+}
+
+function goToDossier(idx) {
+  // Save current id before switching
+  const input = document.getElementById('dossier-id-input');
+  if (input) dossierIds[currentDossier] = input.value;
+  currentDossier = idx;
+  renderCriteria();
+  updateUI();
+  // Restore saved id for new dossier
+  const inp = document.getElementById('dossier-id-input');
+  if (inp) inp.value = dossierIds[currentDossier] || '';
+}
+
+function saveDossierId(val) {
+  dossierIds[currentDossier] = val;
+}
+
+function prevDossier() {
+  if (currentDossier > 0) goToDossier(currentDossier - 1);
+}
+
+function nextDossier() {
+  if (currentDossier < 9) goToDossier(currentDossier + 1);
+}
+
+// =====================
+// RESULTS
+// =====================
+function showResults() {
+  document.getElementById('saisie-section').style.display = 'none';
+  document.getElementById('results-section').style.display = 'block';
+  document.getElementById('results-section').classList.add('fade-in');
+  computeResults();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function computeResults() {
+  // Per-criteria stats
+  const critStats = CRITERIA.map((_, ci) => {
+    const vals = auditData.map(d => d[ci]);
+    const applicable = vals.filter(v => v !== 'na').length;
+    const conforme = vals.filter(v => v === 'conforme').length;
+    const nc = vals.filter(v => v === 'nonconforme').length;
+    const absent = vals.filter(v => v === 'absent').length;
+    const na = vals.filter(v => v === 'na').length;
+    const rate = applicable > 0 ? Math.round((conforme / applicable) * 100) : null;
+    return { conforme, nc, absent, na, applicable, rate };
+  });
+
+  // Global
+  const totalResponses = auditData.flat();
+  const totalConf = totalResponses.filter(v => v === 'conforme').length;
+  const totalNC = totalResponses.filter(v => v === 'nonconforme').length;
+  const totalAbsent = totalResponses.filter(v => v === 'absent').length;
+  const totalNA = totalResponses.filter(v => v === 'na').length;
+  const totalApplicable = totalResponses.filter(v => v !== 'na').length;
+  const globalRate = totalApplicable > 0 ? Math.round((totalConf / totalApplicable) * 100) : 0;
+
+  // KPIs
+  document.getElementById('kpi-conforme').textContent = totalConf;
+  document.getElementById('kpi-nc').textContent = totalNC;
+  document.getElementById('kpi-absent').textContent = totalAbsent;
+  document.getElementById('kpi-na').textContent = totalNA;
+
+  // Score global
+  document.getElementById('score-num').textContent = globalRate + '%';
+  let scoreTitle, scoreComment, scoreColor;
+  if (globalRate >= 80) {
+    scoreTitle = "Pratiques conformes – Niveau satisfaisant";
+    scoreComment = "Le taux de conformité global est satisfaisant. Les pratiques cliniques documentées respectent majoritairement les recommandations en vigueur. Des ajustements ciblés permettront d'atteindre l'excellence.";
+    scoreColor = '#2ecc71';
+  } else if (globalRate >= 60) {
+    scoreTitle = "Des axes d'amélioration à travailler";
+    scoreComment = "Le taux de conformité est moyen. Des lacunes identifiées dans plusieurs critères nécessitent des actions correctives ciblées. Un plan d'amélioration structuré est recommandé.";
+    scoreColor = '#f39c12';
+  } else {
+    scoreTitle = "Non-conformités importantes identifiées";
+    scoreComment = "Le taux de conformité est insuffisant. Des actions correctives prioritaires sont indispensables pour mettre les pratiques en conformité avec les recommandations professionnelles et réglementaires.";
+    scoreColor = '#e74c3c';
+  }
+  document.getElementById('score-title').textContent = scoreTitle;
+  document.getElementById('score-comment').textContent = scoreComment;
+  document.getElementById('score-circle').style.borderColor = scoreColor;
+
+  // Charts
+  renderRadarChart(critStats);
+  renderBarChart(critStats);
+
+  // Feedback table
+  renderFeedbackTable(critStats);
+
+  // Actions
+  renderActions(critStats);
+
+  // Conclusion
+  renderConclusion(globalRate, critStats);
+}
+
+function renderRadarChart(critStats) {
+  if (radarChart) radarChart.destroy();
+  const labels = CRITERIA.map(c => c.label.substring(0, 22) + (c.label.length > 22 ? '…' : ''));
+  const data = critStats.map(s => s.rate !== null ? s.rate : 0);
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Conformité (%)',
+        data,
+        backgroundColor: 'rgba(0,180,216,0.15)',
+        borderColor: 'rgba(0,180,216,0.8)',
+        borderWidth: 2,
+        pointBackgroundColor: data.map(v => v >= 80 ? '#2ecc71' : v >= 60 ? '#f39c12' : '#e74c3c'),
+        pointRadius: 5,
+        pointHoverRadius: 7
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { stepSize: 20, font: { size: 10 } },
+          pointLabels: { font: { size: 9.5, family: 'DM Sans' }, color: '#1a3a5c' },
+          grid: { color: 'rgba(0,0,0,0.08)' },
+          angleLines: { color: 'rgba(0,0,0,0.08)' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `Conformité : ${ctx.raw}%`
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderBarChart(critStats) {
+  if (barChart) barChart.destroy();
+  const labels = CRITERIA.map((c, i) => `C${i + 1}`);
+  const data = critStats.map(s => s.rate !== null ? s.rate : 0);
+  const colors = data.map(v => v >= 80 ? '#2ecc71' : v >= 60 ? '#f39c12' : '#e74c3c');
+  const ctx = document.getElementById('barChart').getContext('2d');
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Conformité (%)',
+        data,
+        backgroundColor: colors,
+        borderRadius: 8,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          min: 0, max: 100,
+          ticks: { stepSize: 20, font: { size: 11 }, callback: v => v + '%' },
+          grid: { color: 'rgba(0,0,0,0.06)' }
+        },
+        x: {
+          ticks: { font: { size: 11, weight: '600' } },
+          grid: { display: false }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => CRITERIA[items[0].dataIndex].label,
+            label: (ctx) => `Conformité : ${ctx.raw}%`
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderFeedbackTable(critStats) {
+  const tbody = document.getElementById('feedback-tbody');
+  tbody.innerHTML = '';
+  critStats.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    const rateClass = s.rate === null ? '' : s.rate >= 80 ? 'rate-ok' : s.rate >= 60 ? 'rate-warn' : 'rate-bad';
+    const detailBadges = auditData.map((d, di) => {
+      const v = d[i];
+      const map = { conforme: 'badge-conforme', nonconforme: 'badge-nc', absent: 'badge-absent', na: 'badge-na' };
+      const label = { conforme: 'C', nonconforme: 'NC', absent: 'IA', na: 'NA' };
+      const idTip = dossierIds[di] ? ` title="D${(di+1).toString().padStart(2,'0')} – ${dossierIds[di]}"` : ` title="Dossier ${(di+1).toString().padStart(2,'0')}"`;
+      return `<span class="badge ${map[v]}"${idTip}>${label[v]}</span>`;
+    }).join(' ');
+
+    const fd = FEEDBACK_DATA[i];
+    const feedbackText = s.rate === null ? 'Non applicable' : s.rate >= 80 ? fd.feedback_ok : fd.feedback_warn;
+
+    tr.innerHTML = `
+      <td><div class="crit-num" style="width:28px;height:28px;font-size:0.75rem">${i + 1}</div></td>
+      <td style="font-weight:600;font-size:0.8rem">${CRITERIA[i].label}</td>
+      <td><span class="${rateClass}">${s.rate !== null ? s.rate + '%' : 'NA'}</span></td>
+      <td>${detailBadges}</td>
+      <td style="font-size:0.78rem;color:#5a6a7a">${feedbackText}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderActions(critStats) {
+  const container = document.getElementById('actions-container');
+  container.innerHTML = '';
+  
+  const critical = [];
+  const toImprove = [];
+  const good = [];
+
+  critStats.forEach((s, i) => {
+    if (s.rate === null) return;
+    if (s.rate < 60) critical.push(i);
+    else if (s.rate < 80) toImprove.push(i);
+    else good.push(i);
+  });
+
+  if (good.length === critStats.filter(s => s.rate !== null).length) {
+    container.innerHTML = `<div class="action-item action-good"><div class="action-title">✅ Félicitations – Pratiques globalement conformes</div><div class="action-desc">L'ensemble des critères atteint un taux de conformité satisfaisant. Il est recommandé de maintenir ce niveau via une démarche d'amélioration continue et de mettre en place un audit de suivi dans 6 mois.</div></div>`;
+    return;
+  }
+
+  if (critical.length > 0) {
+    const item = document.createElement('div');
+    item.className = 'action-item action-critical';
+    item.innerHTML = `<div class="action-title">🚨 Actions prioritaires – Critères critiques (&lt; 60%)</div><div class="action-desc">
+      ${critical.map(i => `<strong>C${i + 1} – ${CRITERIA[i].label} :</strong> ${FEEDBACK_DATA[i].action}`).join('<br><br>')}
+    </div>`;
+    container.appendChild(item);
+  }
+
+  if (toImprove.length > 0) {
+    const item = document.createElement('div');
+    item.className = 'action-item';
+    item.innerHTML = `<div class="action-title">⚠️ Actions d'amélioration – Critères à renforcer (60–79%)</div><div class="action-desc">
+      ${toImprove.map(i => `<strong>C${i + 1} – ${CRITERIA[i].label} :</strong> ${FEEDBACK_DATA[i].action}`).join('<br><br>')}
+    </div>`;
+    container.appendChild(item);
+  }
+
+  if (good.length > 0) {
+    const item = document.createElement('div');
+    item.className = 'action-item action-good';
+    item.innerHTML = `<div class="action-title">✅ Points forts – Critères conformes (≥ 80%)</div><div class="action-desc">
+      ${good.map(i => `<strong>C${i + 1} – ${CRITERIA[i].label}</strong>`).join(', ')} · Maintenir le niveau et partager les bonnes pratiques en équipe.
+    </div>`;
+    container.appendChild(item);
+  }
+
+  // Recommandation DPC
+  const dpcItem = document.createElement('div');
+  dpcItem.className = 'action-item';
+  dpcItem.style.borderColor = '#1a3a5c';
+  dpcItem.style.background = '#f0f4f8';
+  dpcItem.innerHTML = `<div class="action-title">🎓 Recommandation DPC</div><div class="action-desc">Sur la base de cet audit clinique, il est recommandé de suivre une ou plusieurs actions DPC portant sur les thématiques identifiées comme non conformes. Cet audit constitue la phase d'<strong>Évaluation des Pratiques Professionnelles (EPP)</strong> de votre parcours triennal DPC. Conservez ce rapport pour votre dossier ANDPC.</div>`;
+  container.appendChild(dpcItem);
+}
+
+function renderConclusion(globalRate, critStats) {
+  const critCount = critStats.filter(s => s.rate !== null && s.rate < 60).length;
+  const warnCount = critStats.filter(s => s.rate !== null && s.rate >= 60 && s.rate < 80).length;
+  const okCount = critStats.filter(s => s.rate !== null && s.rate >= 80).length;
+  const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  document.getElementById('conclusion-text').innerHTML = `
+    <p><strong>Date de réalisation de l'audit :</strong> ${date}</p><br>
+    <p>Cet audit clinique portant sur la <strong>réfraction en renouvellement avec adaptation</strong> a été réalisé sur 10 dossiers patients. 
+    Il évalue la conformité des pratiques de l'opticien lunetier au regard des 10 critères définis par les recommandations professionnelles et réglementaires (HAS, AOF, Legifrance).</p><br>
+    <p><strong>Résultat global :</strong> Le taux de conformité toutes évaluations confondues est de <strong>${globalRate}%</strong>.</p>
+    <ul style="margin:10px 0 10px 20px;line-height:2">
+      <li><strong>${okCount} critère(s)</strong> présentent un taux de conformité satisfaisant (≥ 80%)</li>
+      <li><strong>${warnCount} critère(s)</strong> nécessitent des actions d'amélioration (60–79%)</li>
+      <li><strong>${critCount} critère(s)</strong> présentent des non-conformités importantes (&lt; 60%)</li>
+    </ul>
+    <p>Cet audit s'inscrit dans le cadre du <strong>Développement Professionnel Continu (DPC)</strong> et de l'<strong>Évaluation des Pratiques Professionnelles (EPP)</strong>, conformément aux exigences de l'ANDPC pour le parcours triennal de formation des opticiens lunetiers. 
+    Les actions d'amélioration identifiées devront faire l'objet d'un suivi et d'un nouvel audit à 6 mois.</p><br>
+    <p style="font-style:italic;font-size:0.78rem">Document à conserver dans votre dossier de formation continue DPC.</p><br>
+    <p><strong>Dossiers inclus dans l'audit :</strong></p>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:0.78rem">
+      <thead><tr style="background:#f0f4f8">
+        <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #dce6f0">N°</th>
+        <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #dce6f0">Identifiant anonymisé</th>
+        <th style="padding:6px 10px;text-align:center;border-bottom:1px solid #dce6f0">Conformité</th>
+        <th style="padding:6px 10px;text-align:center;border-bottom:1px solid #dce6f0">NC</th>
+        <th style="padding:6px 10px;text-align:center;border-bottom:1px solid #dce6f0">Info absente</th>
+        <th style="padding:6px 10px;text-align:center;border-bottom:1px solid #dce6f0">NA</th>
+      </tr></thead>
+      <tbody>${auditData.map((d,di)=>{
+        const iid = dossierIds[di] || `<em style="color:#aaa">Non renseigné</em>`;
+        const conf=d.filter(v=>v==='conforme').length;
+        const nc=d.filter(v=>v==='nonconforme').length;
+        const abs=d.filter(v=>v==='absent').length;
+        const na=d.filter(v=>v==='na').length;
+        const app=d.filter(v=>v!=='na').length;
+        const rate=app>0?Math.round(conf/app*100)+'%':'NA';
+        const col=conf/app>=0.8?'#2ecc71':conf/app>=0.6?'#f39c12':'#e74c3c';
+        return `<tr style="border-bottom:1px solid #f0f4f8">
+          <td style="padding:5px 10px;font-weight:700">D${(di+1).toString().padStart(2,'0')}</td>
+          <td style="padding:5px 10px">${iid}</td>
+          <td style="padding:5px 10px;text-align:center;font-weight:700;color:${col}">${rate}</td>
+          <td style="padding:5px 10px;text-align:center">${nc}</td>
+          <td style="padding:5px 10px;text-align:center">${abs}</td>
+          <td style="padding:5px 10px;text-align:center">${na}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  `;
+}
+
+function resetAudit() {
+  auditData = Array.from({ length: 10 }, () => Array(10).fill(null));
+  dossierIds = Array(10).fill('');
+  currentDossier = 0;
+  if (radarChart) radarChart.destroy();
+  if (barChart) barChart.destroy();
+  document.getElementById('results-section').style.display = 'none';
+  document.getElementById('saisie-section').style.display = 'block';
+  renderCriteria();
+  updateUI();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// =====================
+// PDF EXPORT
+// =====================
+async function exportPDF() {
+  const btn = document.getElementById('btn-pdf');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '⏳ Génération en cours…';
+  btn.disabled = true;
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = 210;
+    const pageH = 297;
+    const margin = 12;
+    const contentW = pageW - margin * 2;
+    let y = margin;
+
+    // ---- HELPERS ----
+    function checkPage(needed) {
+      if (y + needed > pageH - margin) {
+        pdf.addPage();
+        y = margin;
+        return true;
+      }
+      return false;
+    }
+
+    function drawHeader() {
+      pdf.setFillColor(26, 58, 92);
+      pdf.rect(0, 0, pageW, 22, 'F');
+      pdf.setTextColor(255,255,255);
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(11);
+      pdf.text('Audit Clinique – Réfraction en Renouvellement avec Adaptation', margin, 10);
+      pdf.setFont('helvetica','normal');
+      pdf.setFontSize(7.5);
+      pdf.text('EPP · DPC Opticiens Lunetiers · ' + new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}), margin, 16.5);
+      pdf.setTextColor(0,0,0);
+      y = 30;
+    }
+
+    // ---- PAGE 1 : Score + KPIs ----
+    drawHeader();
+
+    // Capture global score block
+    const scoreEl = document.getElementById('global-score-section');
+    const scoreCanvas = await html2canvas(scoreEl, { scale: 2, backgroundColor: null, useCORS: true });
+    const scoreImg = scoreCanvas.toDataURL('image/png');
+    const scoreH = (scoreCanvas.height / scoreCanvas.width) * contentW;
+    pdf.addImage(scoreImg, 'PNG', margin, y, contentW, scoreH);
+    y += scoreH + 6;
+
+    // KPIs
+    const kpiEl = document.querySelector('.kpi-grid');
+    const kpiCanvas = await html2canvas(kpiEl, { scale: 2, backgroundColor: '#f0f4f8', useCORS: true });
+    const kpiImg = kpiCanvas.toDataURL('image/png');
+    const kpiH = (kpiCanvas.height / kpiCanvas.width) * contentW;
+    checkPage(kpiH + 4);
+    pdf.addImage(kpiImg, 'PNG', margin, y, contentW, kpiH);
+    y += kpiH + 8;
+
+    // ---- PAGE 2 : Charts ----
+    checkPage(80);
+    pdf.setFont('helvetica','bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(26,58,92);
+    pdf.text('Résultats graphiques', margin, y);
+    y += 6;
+
+    const chartsEl = document.querySelector('.results-grid');
+    const chartsCanvas = await html2canvas(chartsEl, { scale: 2, backgroundColor: '#f0f4f8', useCORS: true });
+    const chartsImg = chartsCanvas.toDataURL('image/png');
+    const chartsH = (chartsCanvas.height / chartsCanvas.width) * contentW;
+    checkPage(chartsH);
+    pdf.addImage(chartsImg, 'PNG', margin, y, contentW, chartsH);
+    y += chartsH + 8;
+
+    // ---- Feedback table ----
+    checkPage(30);
+    pdf.setFont('helvetica','bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(26,58,92);
+    pdf.text('Analyse détaillée par critère', margin, y);
+    y += 7;
+
+    // Build feedback table manually
+    const RESP_LABEL = { conforme: 'C', nonconforme: 'NC', absent: 'IA', na: 'NA' };
+    const cols = [8, 52, 18, 60, 58]; // widths
+    const headers = ['#', 'Critère', 'Taux', 'Dossiers (D1→D10)', 'Feedback'];
+    
+    // Header row
+    pdf.setFillColor(240, 244, 248);
+    pdf.rect(margin, y, contentW, 7, 'F');
+    pdf.setFont('helvetica','bold');
+    pdf.setFontSize(7);
+    pdf.setTextColor(90,106,122);
+    let cx = margin + 2;
+    headers.forEach((h, hi) => {
+      pdf.text(h, cx, y + 4.8);
+      cx += cols[hi];
+    });
+    y += 7;
+
+    // Compute stats
+    const critStats2 = CRITERIA.map((_, ci) => {
+      const vals = auditData.map(d => d[ci]);
+      const app = vals.filter(v => v !== 'na').length;
+      const conf = vals.filter(v => v === 'conforme').length;
+      const rate = app > 0 ? Math.round(conf/app*100) : null;
+      return { rate, vals };
+    });
+
+    critStats2.forEach((s, i) => {
+      const rowH = 9;
+      checkPage(rowH + 2);
+
+      // Alternating background
+      if (i % 2 === 0) {
+        pdf.setFillColor(248,251,255);
+        pdf.rect(margin, y, contentW, rowH, 'F');
+      }
+
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(26,58,92);
+      cx = margin + 2;
+
+      // # 
+      pdf.text(String(i+1), cx + 1, y + 5.5);
+      cx += cols[0];
+
+      // Critère label (truncated)
+      const lbl = CRITERIA[i].label.length > 30 ? CRITERIA[i].label.substring(0,28)+'…' : CRITERIA[i].label;
+      pdf.setFont('helvetica','normal');
+      pdf.setFontSize(7);
+      pdf.setTextColor(26,58,92);
+      pdf.text(lbl, cx, y + 5.5);
+      cx += cols[1];
+
+      // Taux
+      const rateStr = s.rate !== null ? s.rate+'%' : 'NA';
+      const rateCol = s.rate === null ? [150,150,150] : s.rate >= 80 ? [46,204,113] : s.rate >= 60 ? [243,156,18] : [231,76,60];
+      pdf.setTextColor(...rateCol);
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(8);
+      pdf.text(rateStr, cx + 2, y + 5.5);
+      cx += cols[2];
+
+      // Badges
+      pdf.setFont('helvetica','normal');
+      pdf.setFontSize(6.5);
+      let bx = cx;
+      s.vals.forEach((v, vi) => {
+        const bColors = { conforme:[46,204,113], nonconforme:[231,76,60], absent:[149,165,166], na:[142,68,173] };
+        const bLabels = { conforme:'C', nonconforme:'NC', absent:'IA', na:'NA' };
+        pdf.setFillColor(...(bColors[v]||[200,200,200]));
+        pdf.setTextColor(255,255,255);
+        const bw = v === 'nonconforme' ? 7 : 5.5;
+        pdf.roundedRect(bx, y+2, bw, 5, 1, 1, 'F');
+        pdf.text(bLabels[v]||'?', bx+0.8, y+5.8);
+        bx += bw + 1.5;
+      });
+      cx += cols[3];
+
+      // Feedback (truncated)
+      pdf.setTextColor(90,106,122);
+      pdf.setFontSize(6);
+      pdf.setFont('helvetica','italic');
+      const fd = FEEDBACK_DATA[i];
+      const fbText = s.rate === null ? 'Non applicable' : s.rate >= 80 ? fd.feedback_ok.substring(0,90)+'…' : fd.feedback_warn.substring(0,90)+'…';
+      const fbLines = pdf.splitTextToSize(fbText, cols[4] - 2);
+      pdf.text(fbLines.slice(0,2), cx, y + 4);
+
+      y += rowH;
+      // Row separator
+      pdf.setDrawColor(220,230,240);
+      pdf.line(margin, y, margin + contentW, y);
+    });
+
+    y += 6;
+
+    // ---- Actions d'amélioration ----
+    checkPage(20);
+    pdf.setFont('helvetica','bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(26,58,92);
+    pdf.text("Plan d'actions d'amélioration", margin, y);
+    y += 7;
+
+    const actionsEl = document.getElementById('actions-container');
+    const actCanvas = await html2canvas(actionsEl, { scale: 1.8, backgroundColor: '#ffffff', useCORS: true });
+    const actImg = actCanvas.toDataURL('image/png');
+    const actH = Math.min((actCanvas.height / actCanvas.width) * contentW, pageH - y - margin - 10);
+    checkPage(40);
+    pdf.addImage(actImg, 'PNG', margin, y, contentW, actH);
+    y += actH + 8;
+
+    // ---- Conclusion ----
+    checkPage(30);
+    pdf.setFont('helvetica','bold');
+    pdf.setFontSize(11);
+    pdf.setTextColor(26,58,92);
+    pdf.text('Conclusion – Rapport DPC', margin, y);
+    y += 6;
+
+    const conclEl = document.getElementById('conclusion-text');
+    const conclCanvas = await html2canvas(conclEl, { scale: 1.8, backgroundColor: '#ffffff', useCORS: true });
+    const conclImg = conclCanvas.toDataURL('image/png');
+    const conclH = (conclCanvas.height / conclCanvas.width) * contentW;
+    checkPage(conclH);
+    pdf.addImage(conclImg, 'PNG', margin, y, contentW, conclH);
+    y += conclH + 6;
+
+    // ---- Footer on each page ----
+    const totalPages = pdf.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      pdf.setPage(p);
+      pdf.setFillColor(240,244,248);
+      pdf.rect(0, pageH - 10, pageW, 10, 'F');
+      pdf.setFont('helvetica','normal');
+      pdf.setFontSize(6.5);
+      pdf.setTextColor(90,106,122);
+      pdf.text('EPP · Audit Clinique · DPC Opticiens Lunetiers · Référentiels : HAS · AOF · Legifrance · ANDPC', margin, pageH - 4);
+      pdf.text(`Page ${p} / ${totalPages}`, pageW - margin - 14, pageH - 4);
+    }
+
+    // Save
+    const date = new Date().toISOString().slice(0,10);
+    pdf.save(`audit_clinique_refraction_${date}.pdf`);
+
+  } catch(e) {
+    console.error(e);
+    alert('Erreur lors de la génération du PDF. Veuillez réessayer ou utiliser Ctrl+P.');
+  }
+
+  btn.innerHTML = originalText;
+  btn.disabled = false;
+}
+
+// =====================
+// CSV EXPORT
+// =====================
+function exportCSV() {
+  const RESP_LABEL = { conforme: 'Conforme', nonconforme: 'Non conforme', absent: 'Info absente', na: 'NA' };
+  const critHeaders = CRITERIA.map((c, i) => `C${i+1} - ${c.label}`);
+  const header = ['Dossier N°', 'Identifiant anonymisé', ...critHeaders, 'Total Conforme', 'Total NC', 'Total Info absente', 'Total NA'];
+
+  const rows = auditData.map((dossier, di) => {
+    const id = dossierIds[di] || '';
+    const vals = dossier.map(v => RESP_LABEL[v] || '');
+    const conf = dossier.filter(v => v === 'conforme').length;
+    const nc = dossier.filter(v => v === 'nonconforme').length;
+    const abs = dossier.filter(v => v === 'absent').length;
+    const na = dossier.filter(v => v === 'na').length;
+    return [`Dossier ${(di+1).toString().padStart(2,'0')}`, id, ...vals, conf, nc, abs, na];
+  });
+
+  // Synthesis row
+  const critRates = CRITERIA.map((_, ci) => {
+    const vals = auditData.map(d => d[ci]);
+    const app = vals.filter(v => v !== 'na').length;
+    const conf = vals.filter(v => v === 'conforme').length;
+    return app > 0 ? Math.round(conf/app*100)+'%' : 'NA';
+  });
+  const totalFlat = auditData.flat();
+  const synthRow = ['SYNTHÈSE', 'Taux de conformité par critère',
+    ...critRates,
+    totalFlat.filter(v=>v==='conforme').length,
+    totalFlat.filter(v=>v==='nonconforme').length,
+    totalFlat.filter(v=>v==='absent').length,
+    totalFlat.filter(v=>v==='na').length
+  ];
+
+  const csvContent = [header, ...rows, [], synthRow]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(';'))
+    .join('\n');
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `audit_clinique_refraction_${date}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// =====================
+// BOOT
+// =====================
+init();
+</script>
+</body>
+</html>
